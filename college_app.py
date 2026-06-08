@@ -3,8 +3,6 @@ import psycopg2
 import psycopg2.extras
 import cloudinary
 import cloudinary.uploader
-import tkinter as tk
-from tkinter import filedialog
 import os
 from dotenv import load_dotenv
 
@@ -88,39 +86,20 @@ def main(page: ft.Page):
     page.theme_mode = ft.ThemeMode.DARK
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.vertical_alignment   = ft.MainAxisAlignment.START
-    page.window.width  = 650
-    page.window.height = 900
     page.scroll = ft.ScrollMode.AUTO
 
     session = {"username": "", "name": ""}
 
-    # ── Profile Picture Dialog (Cloudinary upload) ──────────────────────────
-    pic_path_field = ft.TextField(label="Image Path", width=300, read_only=True)
+    # ── Profile Picture Upload (Web-compatible, no tkinter) ─────────────────
+    upload_status = ft.Text(visible=False)
 
-    def browse_files(e):
-        root = tk.Tk()
-        root.withdraw()
-        root.attributes('-topmost', True)
-        file_path = filedialog.askopenfilename(
-            title="Select Profile Picture",
-            filetypes=[("Image Files", "*.png;*.jpg;*.jpeg")]
-        )
-        root.destroy()
-        if file_path:
-            pic_path_field.value = file_path
-            page.update()
-
-    def close_dialog(e):
-        pic_dialog.open = False
-        page.update()
-
-    def save_new_pic(e):
-        local_path = pic_path_field.value
-        if not local_path:
+    def on_pic_upload(e: ft.FilePickerResultEvent):
+        if not e.files:
             return
+        file = e.files[0]
         try:
-            # Upload to Cloudinary and get a permanent URL
-            result  = cloudinary.uploader.upload(local_path, folder="rkgitm_profiles")
+            # Upload to Cloudinary using the file path (works on web too)
+            result  = cloudinary.uploader.upload(file.path, folder="rkgitm_profiles")
             pic_url = result.get("secure_url", "")
             with get_conn() as conn:
                 with conn.cursor() as c:
@@ -129,31 +108,22 @@ def main(page: ft.Page):
                         (pic_url, session["username"])
                     )
                 conn.commit()
-            pic_dialog.open = False
             page.update()
             show_student_dashboard(session["username"], session["name"])
         except Exception as ex:
-            pic_path_field.value = f"Upload failed: {ex}"
+            upload_status.value   = f"Upload failed: {ex}"
+            upload_status.visible = True
             page.update()
 
-    pic_dialog = ft.AlertDialog(
-        title   = ft.Text("Upload Profile Picture"),
-        content = ft.Column([
-            ft.Text("Choose an image from your device:"),
-            ft.Row([pic_path_field, ft.ElevatedButton("Browse", icon=ft.Icons.FOLDER_OPEN, on_click=browse_files)])
-        ], tight=True),
-        actions = [
-            ft.TextButton("Save & Upload", on_click=save_new_pic),
-            ft.TextButton("Cancel",        on_click=close_dialog)
-        ]
-    )
-    page.overlay.append(pic_dialog)
+    file_picker = ft.FilePicker(on_result=on_pic_upload)
+    page.overlay.append(file_picker)
 
     def open_pic_dialog(e):
-        pic_path_field.value = ""
-        pic_dialog.open = True
-        page.update()
-
+        file_picker.pick_files(
+            dialog_title="Select Profile Picture",
+            allowed_extensions=["png", "jpg", "jpeg"],
+            allow_multiple=False
+        )
 
     # ── Auth logic ───────────────────────────────────────────────────────────
     def handle_login(e, username_field, password_field, error_text):
@@ -242,8 +212,7 @@ def main(page: ft.Page):
         )
         page.add(
             ft.Container(height=50),
-            ft.Image(src="327438062_566676758746170_7709926032607862834_n.jpg", width=150, height=150),
-            ft.Text("College Portal", size=30, weight=ft.FontWeight.BOLD),
+            ft.Text("RKGITM Portal", size=30, weight=ft.FontWeight.BOLD),
             ft.Container(height=20),
             username_field,
             password_field,
@@ -340,6 +309,7 @@ def main(page: ft.Page):
                     ft.ElevatedButton("Upload Profile Pic", icon=ft.Icons.UPLOAD, on_click=open_pic_dialog, height=30)
                 ])
             ], alignment=ft.MainAxisAlignment.START),
+            upload_status,
             ft.Container(height=20),
             ft.Card(content=ft.Container(content=ft.Column([
                 ft.Text("Personal Information", weight=ft.FontWeight.BOLD),
@@ -557,4 +527,6 @@ def main(page: ft.Page):
 
     show_login_page()
 
-ft.run(main)
+# --- 4. WEB DEPLOYMENT (Railway compatible) ---
+port = int(os.getenv("PORT", 8502))
+ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")
