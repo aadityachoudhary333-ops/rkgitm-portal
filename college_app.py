@@ -56,7 +56,7 @@ def main(page: ft.Page):
     # ── File Picker (web-compatible, no tkinter) ─────────────────────────────
     pic_path_field = ft.TextField(label="Image Path", width=300, read_only=True)
 
-    def on_file_picked(e: ft.FilePickerResultEvent):
+    def on_file_picked(e):
         if e.files:
             pic_path_field.value = e.files[0].path
             page.update()
@@ -440,4 +440,4 @@ def main(page: ft.Page):
     show_login_page()
 
 port = int(os.getenv("PORT", 8502))
-ft.app(target=main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")
+ft.run(main, view=ft.AppView.WEB_BROWSER, port=port, host="0.0.0.0")
