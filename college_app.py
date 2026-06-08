@@ -53,73 +53,72 @@ def main(page: ft.Page):
 
     session = {"username": "", "name": ""}
 
-    # ── File Picker (web-compatible, no tkinter) ─────────────────────────────
-    pic_path_field = ft.TextField(label="Image Path", width=300, read_only=True)
-
-    def on_file_picked(e):
-        if e.files:
-            pic_path_field.value = e.files[0].path
-            page.update()
-
-    file_picker_dialog = ft.FilePicker(on_result=on_file_picked)
-    page.overlay.append(file_picker_dialog)
-
-    def browse_files(e):
-        file_picker_dialog.pick_files(
-            dialog_title="Select Profile Picture",
-            allowed_extensions=["png", "jpg", "jpeg"],
-            allow_multiple=False
-        )
+    # ── Profile pic via URL paste (no FilePicker - fully compatible) ──────────
+    pic_url_field = ft.TextField(
+        label="Paste image URL (e.g. from imgur.com)",
+        width=380,
+        hint_text="https://i.imgur.com/yourimage.jpg"
+    )
+    pic_status = ft.Text(visible=False)
 
     def close_dialog(e):
         pic_dialog.open = False
         page.update()
 
     def save_new_pic(e):
-        local_path = pic_path_field.value
-        if not local_path:
+        url = pic_url_field.value.strip()
+        if not url:
+            pic_status.value = "Please paste an image URL first!"
+            pic_status.color = ft.colors.RED
+            pic_status.visible = True
+            page.update()
             return
         try:
-            result  = cloudinary.uploader.upload(local_path, folder="rkgitm_profiles")
-            pic_url = result.get("secure_url", "")
             with get_conn() as conn:
                 with conn.cursor() as c:
                     c.execute("UPDATE student_data SET profile_pic=%s WHERE username=%s",
-                              (pic_url, session["username"]))
+                              (url, session["username"]))
                 conn.commit()
             pic_dialog.open = False
+            pic_status.visible = False
             page.update()
             show_student_dashboard(session["username"], session["name"])
         except Exception as ex:
-            pic_path_field.value = f"Upload failed: {ex}"
+            pic_status.value = f"Failed: {ex}"
+            pic_status.color = ft.colors.RED
+            pic_status.visible = True
             page.update()
 
     pic_dialog = ft.AlertDialog(
-        title=ft.Text("Upload Profile Picture"),
+        title=ft.Text("Set Profile Picture"),
         content=ft.Column([
-            ft.Text("Choose an image from your device:"),
-            ft.Row([pic_path_field, ft.ElevatedButton("Browse", icon=ft.icons.FOLDER_OPEN, on_click=browse_files)])
+            ft.Text("Paste a direct image URL:"),
+            pic_url_field,
+            ft.Text("Tip: Upload to imgur.com and paste the link here", size=11, color=ft.colors.GREY),
+            pic_status
         ], tight=True),
         actions=[
-            ft.TextButton("Save & Upload", on_click=save_new_pic),
+            ft.TextButton("Save", on_click=save_new_pic),
             ft.TextButton("Cancel", on_click=close_dialog)
         ]
     )
     page.overlay.append(pic_dialog)
 
     def open_pic_dialog(e):
-        pic_path_field.value = ""
+        pic_url_field.value = ""
+        pic_status.visible = False
         pic_dialog.open = True
         page.update()
 
-    # ── Auth ─────────────────────────────────────────────────────────────────
+    # ── Auth ──────────────────────────────────────────────────────────────────
     def handle_login(e, username_field, password_field, error_text):
         user     = username_field.value.lower() if username_field.value else ""
         password = password_field.value
         try:
             with get_conn() as conn:
                 with conn.cursor() as c:
-                    c.execute("SELECT role, name, status FROM users WHERE username=%s AND password=%s", (user, password))
+                    c.execute("SELECT role, name, status FROM users WHERE username=%s AND password=%s",
+                              (user, password))
                     record = c.fetchone()
         except Exception as ex:
             error_text.value = f"DB error: {ex}"
@@ -167,8 +166,8 @@ def main(page: ft.Page):
                                fields['sem'].value, fields['email'].value, fields['phone'].value))
                 conn.commit()
             show_login_page("Registration Successful! You can now log in.")
-        except psycopg2.errors.UniqueViolation:
-            error_text.value   = "Username already exists!"
+        except Exception as ex:
+            error_text.value   = "Username already exists or error occurred!"
             error_text.color   = ft.colors.RED
             error_text.visible = True
             page.update()
@@ -181,21 +180,25 @@ def main(page: ft.Page):
     # ── Views ─────────────────────────────────────────────────────────────────
     def show_login_page(message=""):
         page.clean()
-        username_field   = ft.TextField(label="Username", width=300, prefix_icon=ft.icons.PERSON)
-        password_field   = ft.TextField(label="Password", password=True, can_reveal_password=True, width=300, prefix_icon=ft.icons.LOCK)
-        login_error_text = ft.Text(value=message, color=ft.colors.GREEN if message else ft.colors.RED, visible=bool(message))
+        username_field   = ft.TextField(label="Username", width=300)
+        password_field   = ft.TextField(label="Password", password=True, can_reveal_password=True, width=300)
+        login_error_text = ft.Text(value=message,
+                                   color=ft.colors.GREEN if message else ft.colors.RED,
+                                   visible=bool(message))
         page.add(
             ft.Container(height=50),
             ft.Text("RKGITM Portal", size=30, weight=ft.FontWeight.BOLD),
             ft.Container(height=20),
-            username_field, password_field, login_error_text,
+            username_field,
+            password_field,
+            login_error_text,
             ft.ElevatedButton("Login",
                 on_click=lambda e: handle_login(e, username_field, password_field, login_error_text),
                 width=300,
                 style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_700, color=ft.colors.WHITE)),
             ft.TextButton("New Student? Register Here", on_click=lambda _: show_register_page()),
             ft.Container(height=20),
-            ft.Text("Test Admin: admin / adminpassword", size=12, color=ft.colors.GREY)
+            ft.Text("Admin: admin / adminpassword", size=12, color=ft.colors.GREY)
         )
         page.update()
 
@@ -216,7 +219,8 @@ def main(page: ft.Page):
             ft.Container(height=40),
             ft.Text("Student Registration", size=24, weight=ft.FontWeight.BOLD),
             ft.Divider(),
-            *reg_fields.values(), error_text,
+            *reg_fields.values(),
+            error_text,
             ft.ElevatedButton("Submit Registration",
                 on_click=lambda e: handle_registration(e, reg_fields, error_text),
                 width=300,
@@ -225,7 +229,7 @@ def main(page: ft.Page):
         )
         page.update()
 
-    def show_student_dashboard(username: str, name: str):
+    def show_student_dashboard(username, name):
         page.clean()
         with get_conn() as conn:
             with conn.cursor() as c:
@@ -238,7 +242,7 @@ def main(page: ft.Page):
             percent     = round((int(att_done) / int(att_tot)) * 100, 1)
             att_display = f"{att_done}/{att_tot} Classes ({percent}%)"
             att_color   = ft.colors.GREEN_400 if percent >= 75 else ft.colors.RED_400
-        except (ValueError, ZeroDivisionError):
+        except:
             att_display = "No Classes Recorded"
             att_color   = ft.colors.GREY
         subjects = [(n1,s1_1,s1_2),(n2,s2_1,s2_2),(n3,s3_1,s3_2),(n4,s4_1,s4_2),(n5,s5_1,s5_2)]
@@ -252,7 +256,8 @@ def main(page: ft.Page):
         avatar = (
             ft.CircleAvatar(foreground_image_src=profile_pic, radius=45)
             if profile_pic
-            else ft.CircleAvatar(content=ft.Icon(ft.icons.PERSON, size=40), radius=45, bgcolor=ft.colors.BLUE_GREY_800)
+            else ft.CircleAvatar(content=ft.Icon(ft.icons.PERSON, size=40), radius=45,
+                                 bgcolor=ft.colors.BLUE_GREY_800)
         )
         page.add(
             ft.Container(height=20),
@@ -263,15 +268,19 @@ def main(page: ft.Page):
             ft.Row([avatar, ft.Column([
                 ft.Text(name, size=20, weight=ft.FontWeight.BOLD),
                 ft.Text(f"{branch} | Semester {sem}", color=ft.colors.BLUE_300),
-                ft.ElevatedButton("Upload Profile Pic", icon=ft.icons.UPLOAD, on_click=open_pic_dialog, height=30)
+                ft.ElevatedButton("Set Profile Picture", on_click=open_pic_dialog, height=35)
             ])], alignment=ft.MainAxisAlignment.START),
             ft.Container(height=20),
             ft.Card(content=ft.Container(content=ft.Column([
-                ft.Text("Personal Information", weight=ft.FontWeight.BOLD), ft.Divider(),
-                ft.Text(f"Roll No: {roll}"), ft.Text(f"Email: {email}"), ft.Text(f"Phone: {phone}")
+                ft.Text("Personal Information", weight=ft.FontWeight.BOLD),
+                ft.Divider(),
+                ft.Text(f"Roll No: {roll}"),
+                ft.Text(f"Email: {email}"),
+                ft.Text(f"Phone: {phone}")
             ]), padding=15, width=550)),
             ft.Card(content=ft.Container(content=ft.Column([
-                ft.Text("Academics & Attendance", weight=ft.FontWeight.BOLD), ft.Divider(),
+                ft.Text("Academics & Attendance", weight=ft.FontWeight.BOLD),
+                ft.Divider(),
                 ft.Text(att_display, color=att_color, weight=ft.FontWeight.BOLD, size=18),
                 ft.Container(height=10),
                 ft.DataTable(
@@ -284,9 +293,9 @@ def main(page: ft.Page):
         )
         page.update()
 
-    def show_admin_dashboard(name: str):
+    def show_admin_dashboard(name):
         page.clean()
-        target_student    = ft.TextField(label="Selected Username", width=390, read_only=True, prefix_icon=ft.icons.PERSON_PIN)
+        target_student    = ft.TextField(label="Selected Student", width=390, read_only=True)
         edit_sem          = ft.TextField(label="Current Semester", width=150)
         admin_status_text = ft.Text(visible=False)
         att_attended      = ft.TextField(label="Classes Attended",  width=265)
@@ -319,7 +328,7 @@ def main(page: ft.Page):
                     subject_inputs[i]["name"].value = vals[0]
                     subject_inputs[i]["s1"].value   = vals[1]
                     subject_inputs[i]["s2"].value   = vals[2]
-            admin_status_text.value   = f"Currently Editing: {selected_username}"
+            admin_status_text.value   = f"Editing: {selected_username}"
             admin_status_text.color   = ft.colors.BLUE_300
             admin_status_text.visible = True
             page.update()
@@ -343,8 +352,8 @@ def main(page: ft.Page):
                 ft.DataRow(cells=[
                     ft.DataCell(ft.Text(s_name)),
                     ft.DataCell(ft.Text(s_roll)),
-                    ft.DataCell(ft.IconButton(icon=ft.icons.EDIT_DOCUMENT, icon_color=ft.colors.BLUE_400,
-                                              on_click=lambda e, u=s_user: select_student(e, u)))
+                    ft.DataCell(ft.ElevatedButton("Select",
+                        on_click=lambda e, u=s_user: select_student(e, u)))
                 ]) for s_name, s_roll, s_user in all_students
             ]
             page.update()
@@ -352,8 +361,8 @@ def main(page: ft.Page):
         def handle_upload(e):
             student = target_student.value
             if not student:
-                admin_status_text.value = "Please select a student from the table first!"
-                admin_status_text.color = ft.colors.RED
+                admin_status_text.value   = "Please select a student first!"
+                admin_status_text.color   = ft.colors.RED
                 admin_status_text.visible = True
                 page.update()
                 return
@@ -377,16 +386,16 @@ def main(page: ft.Page):
                         sub5_name=%s, sub5_s1=%s, sub5_s2=%s
                         WHERE username=%s''', values)
                 conn.commit()
-            admin_status_text.value   = f"Data fully updated for {student}!"
+            admin_status_text.value   = f"Updated {student} successfully!"
             admin_status_text.color   = ft.colors.GREEN
             admin_status_text.visible = True
             page.update()
 
-        def handle_wipe_for_promotion(e):
+        def handle_wipe(e):
             student = target_student.value
             if not student:
-                admin_status_text.value = "Select a student to promote first!"
-                admin_status_text.color = ft.colors.RED
+                admin_status_text.value   = "Select a student first!"
+                admin_status_text.color   = ft.colors.RED
                 admin_status_text.visible = True
                 page.update()
                 return
@@ -398,19 +407,14 @@ def main(page: ft.Page):
                         sub3_s1='-', sub3_s2='-', sub4_s1='-', sub4_s2='-',
                         sub5_s1='-', sub5_s2='-' WHERE username=%s''', (student,))
                 conn.commit()
-            admin_status_text.value   = "Academic data wiped! Set the new semester and upload subjects."
+            admin_status_text.value   = "Data wiped! Set new semester and upload."
             admin_status_text.color   = ft.colors.ORANGE_400
             admin_status_text.visible = True
             select_student(None, student)
 
-        search_bar = ft.TextField(label="Search by Name or Roll No...", width=400,
-                                  prefix_icon=ft.icons.SEARCH, on_change=refresh_table)
+        search_bar = ft.TextField(label="Search by Name or Roll No...", width=400, on_change=refresh_table)
         refresh_table()
 
-        subject_ui_rows = [
-            ft.Row([inp["name"], inp["s1"], inp["s2"]], alignment=ft.MainAxisAlignment.START)
-            for inp in subject_inputs
-        ]
         page.add(
             ft.Container(height=20),
             ft.Row([ft.Text("Admin Control Panel", size=24, weight=ft.FontWeight.BOLD),
@@ -420,17 +424,16 @@ def main(page: ft.Page):
             ft.Text("Student Database", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_300),
             search_bar, students_table,
             ft.Container(height=30), ft.Divider(),
-            ft.Text("Upload Data for Selected Student:", weight=ft.FontWeight.BOLD),
+            ft.Text("Edit Selected Student:", weight=ft.FontWeight.BOLD),
             ft.Row([target_student, edit_sem]),
-            ft.Text("Attendance Tracker", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_GREY_300),
+            ft.Text("Attendance", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_GREY_300),
             ft.Row([att_attended, att_total]),
-            ft.Text("Subjects & Sessional Marks", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_GREY_300),
-            *subject_ui_rows,
+            ft.Text("Subjects & Marks", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_GREY_300),
+            *[ft.Row([inp["name"], inp["s1"], inp["s2"]]) for inp in subject_inputs],
             ft.Container(height=10),
             ft.ElevatedButton("Upload All Data", on_click=handle_upload, width=550,
                 style=ft.ButtonStyle(bgcolor=ft.colors.RED_700, color=ft.colors.WHITE)),
-            ft.ElevatedButton("Start New Semester (Wipe Data)", icon=ft.icons.WARNING,
-                on_click=handle_wipe_for_promotion, width=550,
+            ft.ElevatedButton("Start New Semester (Wipe Data)", on_click=handle_wipe, width=550,
                 style=ft.ButtonStyle(bgcolor=ft.colors.ORANGE_700, color=ft.colors.WHITE)),
             admin_status_text,
             ft.Container(height=40)
