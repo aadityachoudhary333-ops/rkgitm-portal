@@ -69,7 +69,7 @@ def main(page: ft.Page):
         url = pic_url_field.value.strip()
         if not url:
             pic_status.value = "Please paste an image URL first!"
-            pic_status.color = ft.colors.RED
+            pic_status.color = ft.Colors.RED
             pic_status.visible = True
             page.update()
             return
@@ -85,7 +85,7 @@ def main(page: ft.Page):
             show_student_dashboard(session["username"], session["name"])
         except Exception as ex:
             pic_status.value = f"Failed: {ex}"
-            pic_status.color = ft.colors.RED
+            pic_status.color = ft.Colors.RED
             pic_status.visible = True
             page.update()
 
@@ -94,7 +94,7 @@ def main(page: ft.Page):
         content=ft.Column([
             ft.Text("Paste a direct image URL:"),
             pic_url_field,
-            ft.Text("Tip: Upload to imgur.com and paste the link here", size=11, color=ft.colors.GREY),
+            ft.Text("Tip: Upload to imgur.com and paste the link here", size=11, color=ft.Colors.GREY),
             pic_status
         ], tight=True),
         actions=[
@@ -147,7 +147,7 @@ def main(page: ft.Page):
         for field in fields.values():
             if not field.value:
                 error_text.value   = "All fields are required!"
-                error_text.color   = ft.colors.RED
+                error_text.color   = ft.Colors.RED
                 error_text.visible = True
                 page.update()
                 return
@@ -168,7 +168,7 @@ def main(page: ft.Page):
             show_login_page("Registration Successful! You can now log in.")
         except Exception as ex:
             error_text.value   = "Username already exists or error occurred!"
-            error_text.color   = ft.colors.RED
+            error_text.color   = ft.Colors.RED
             error_text.visible = True
             page.update()
 
@@ -183,7 +183,7 @@ def main(page: ft.Page):
         username_field   = ft.TextField(label="Username", width=300)
         password_field   = ft.TextField(label="Password", password=True, can_reveal_password=True, width=300)
         login_error_text = ft.Text(value=message,
-                                   color=ft.colors.GREEN if message else ft.colors.RED,
+                                   color=ft.Colors.GREEN if message else ft.Colors.RED,
                                    visible=bool(message))
         page.add(
             ft.Container(height=50),
@@ -195,10 +195,10 @@ def main(page: ft.Page):
             ft.ElevatedButton("Login",
                 on_click=lambda e: handle_login(e, username_field, password_field, login_error_text),
                 width=300,
-                style=ft.ButtonStyle(bgcolor=ft.colors.BLUE_700, color=ft.colors.WHITE)),
+                style=ft.ButtonStyle(bgcolor=ft.Colors.BLUE_700, color=ft.Colors.WHITE)),
             ft.TextButton("New Student? Register Here", on_click=lambda _: show_register_page()),
             ft.Container(height=20),
-            ft.Text("Admin: admin / adminpassword", size=12, color=ft.colors.GREY)
+            ft.Text("Admin: admin / adminpassword", size=12, color=ft.Colors.GREY)
         )
         page.update()
 
@@ -224,7 +224,7 @@ def main(page: ft.Page):
             ft.ElevatedButton("Submit Registration",
                 on_click=lambda e: handle_registration(e, reg_fields, error_text),
                 width=300,
-                style=ft.ButtonStyle(bgcolor=ft.colors.GREEN_700, color=ft.colors.WHITE)),
+                style=ft.ButtonStyle(bgcolor=ft.Colors.GREEN_700, color=ft.Colors.WHITE)),
             ft.TextButton("Back to Login", on_click=lambda _: show_login_page())
         )
         page.update()
@@ -241,10 +241,10 @@ def main(page: ft.Page):
         try:
             percent     = round((int(att_done) / int(att_tot)) * 100, 1)
             att_display = f"{att_done}/{att_tot} Classes ({percent}%)"
-            att_color   = ft.colors.GREEN_400 if percent >= 75 else ft.colors.RED_400
+            att_color   = ft.Colors.GREEN_400 if percent >= 75 else ft.Colors.RED_400
         except:
             att_display = "No Classes Recorded"
-            att_color   = ft.colors.GREY
+            att_color   = ft.Colors.GREY
         subjects = [(n1,s1_1,s1_2),(n2,s2_1,s2_2),(n3,s3_1,s3_2),(n4,s4_1,s4_2),(n5,s5_1,s5_2)]
         subject_rows = [
             ft.DataRow(cells=[
@@ -256,18 +256,18 @@ def main(page: ft.Page):
         avatar = (
             ft.CircleAvatar(foreground_image_src=profile_pic, radius=45)
             if profile_pic
-            else ft.CircleAvatar(content=ft.Icon(ft.icons.PERSON, size=40), radius=45,
-                                 bgcolor=ft.colors.BLUE_GREY_800)
+            else ft.CircleAvatar(content=ft.Icon(ft.Icons.PERSON, size=40), radius=45,
+                                 bgcolor=ft.Colors.BLUE_GREY_800)
         )
         page.add(
             ft.Container(height=20),
             ft.Row([ft.Text("Student Dashboard", size=24, weight=ft.FontWeight.BOLD),
-                    ft.IconButton(icon=ft.icons.LOGOUT, on_click=logout)],
+                    ft.IconButton(icon=ft.Icons.LOGOUT, on_click=logout)],
                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Divider(),
             ft.Row([avatar, ft.Column([
                 ft.Text(name, size=20, weight=ft.FontWeight.BOLD),
-                ft.Text(f"{branch} | Semester {sem}", color=ft.colors.BLUE_300),
+                ft.Text(f"{branch} | Semester {sem}", color=ft.Colors.BLUE_300),
                 ft.ElevatedButton("Set Profile Picture", on_click=open_pic_dialog, height=35)
             ])], alignment=ft.MainAxisAlignment.START),
             ft.Container(height=20),
@@ -329,7 +329,7 @@ def main(page: ft.Page):
                     subject_inputs[i]["s1"].value   = vals[1]
                     subject_inputs[i]["s2"].value   = vals[2]
             admin_status_text.value   = f"Editing: {selected_username}"
-            admin_status_text.color   = ft.colors.BLUE_300
+            admin_status_text.color   = ft.Colors.BLUE_300
             admin_status_text.visible = True
             page.update()
 
@@ -362,7 +362,7 @@ def main(page: ft.Page):
             student = target_student.value
             if not student:
                 admin_status_text.value   = "Please select a student first!"
-                admin_status_text.color   = ft.colors.RED
+                admin_status_text.color   = ft.Colors.RED
                 admin_status_text.visible = True
                 page.update()
                 return
@@ -387,7 +387,7 @@ def main(page: ft.Page):
                         WHERE username=%s''', values)
                 conn.commit()
             admin_status_text.value   = f"Updated {student} successfully!"
-            admin_status_text.color   = ft.colors.GREEN
+            admin_status_text.color   = ft.Colors.GREEN
             admin_status_text.visible = True
             page.update()
 
@@ -395,7 +395,7 @@ def main(page: ft.Page):
             student = target_student.value
             if not student:
                 admin_status_text.value   = "Select a student first!"
-                admin_status_text.color   = ft.colors.RED
+                admin_status_text.color   = ft.Colors.RED
                 admin_status_text.visible = True
                 page.update()
                 return
@@ -408,7 +408,7 @@ def main(page: ft.Page):
                         sub5_s1='-', sub5_s2='-' WHERE username=%s''', (student,))
                 conn.commit()
             admin_status_text.value   = "Data wiped! Set new semester and upload."
-            admin_status_text.color   = ft.colors.ORANGE_400
+            admin_status_text.color   = ft.Colors.ORANGE_400
             admin_status_text.visible = True
             select_student(None, student)
 
@@ -418,23 +418,23 @@ def main(page: ft.Page):
         page.add(
             ft.Container(height=20),
             ft.Row([ft.Text("Admin Control Panel", size=24, weight=ft.FontWeight.BOLD),
-                    ft.IconButton(icon=ft.icons.LOGOUT, on_click=logout)],
+                    ft.IconButton(icon=ft.Icons.LOGOUT, on_click=logout)],
                    alignment=ft.MainAxisAlignment.SPACE_BETWEEN),
             ft.Divider(),
-            ft.Text("Student Database", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_300),
+            ft.Text("Student Database", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_300),
             search_bar, students_table,
             ft.Container(height=30), ft.Divider(),
             ft.Text("Edit Selected Student:", weight=ft.FontWeight.BOLD),
             ft.Row([target_student, edit_sem]),
-            ft.Text("Attendance", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_GREY_300),
+            ft.Text("Attendance", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_300),
             ft.Row([att_attended, att_total]),
-            ft.Text("Subjects & Marks", weight=ft.FontWeight.BOLD, color=ft.colors.BLUE_GREY_300),
+            ft.Text("Subjects & Marks", weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_300),
             *[ft.Row([inp["name"], inp["s1"], inp["s2"]]) for inp in subject_inputs],
             ft.Container(height=10),
             ft.ElevatedButton("Upload All Data", on_click=handle_upload, width=550,
-                style=ft.ButtonStyle(bgcolor=ft.colors.RED_700, color=ft.colors.WHITE)),
+                style=ft.ButtonStyle(bgcolor=ft.Colors.RED_700, color=ft.Colors.WHITE)),
             ft.ElevatedButton("Start New Semester (Wipe Data)", on_click=handle_wipe, width=550,
-                style=ft.ButtonStyle(bgcolor=ft.colors.ORANGE_700, color=ft.colors.WHITE)),
+                style=ft.ButtonStyle(bgcolor=ft.Colors.ORANGE_700, color=ft.Colors.WHITE)),
             admin_status_text,
             ft.Container(height=40)
         )
